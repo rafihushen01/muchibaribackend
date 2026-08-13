@@ -3,6 +3,7 @@ import Product from '../models/Product.js'
 import mongoose from 'mongoose'
 import { asyncHandler } from '../middleware/asyncHandler.js'
 import { clearPublicCache } from '../middleware/cacheMiddleware.js'
+import { revalidateHomepage } from '../utils/revalidate.js'
 import { productResponse } from '../utils/serializers.js'
 
 const fields = ['name', 'description', 'price', 'originalPrice', 'imageUrl', 'imageUrls', 'categoryId', 'sizes', 'colors', 'inStock', 'isHotDeal']
@@ -50,6 +51,7 @@ export const createProduct = asyncHandler(async (req, res) => {
   const product = await Product.create(data)
   await product.populate('categoryId', 'name slug')
   clearPublicCache()
+  revalidateHomepage().catch(err => console.error('Revalidation failed:', err))
   res.status(201).json({ product: productResponse(product) })
 })
 
@@ -60,6 +62,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findByIdAndUpdate(req.params.id, data, { returnDocument: 'after', runValidators: true }).populate('categoryId', 'name slug')
   if (!product) return res.status(404).json({ message: 'Product not found.' })
   clearPublicCache()
+  revalidateHomepage().catch(err => console.error('Revalidation failed:', err))
   res.json({ product: productResponse(product) })
 })
 
@@ -67,5 +70,6 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findByIdAndDelete(req.params.id)
   if (!product) return res.status(404).json({ message: 'Product not found.' })
   clearPublicCache()
+  revalidateHomepage().catch(err => console.error('Revalidation failed:', err))
   res.status(204).end()
 })
