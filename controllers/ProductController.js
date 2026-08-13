@@ -22,6 +22,10 @@ function validCategoryId(value) {
   return typeof value === 'string' && mongoose.isObjectIdOrHexString(value)
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 export const listProducts = asyncHandler(async (req, res) => {
   const query = {}
   if (req.query.in_stock !== undefined) query.inStock = req.query.in_stock === 'true'
@@ -31,7 +35,10 @@ export const listProducts = asyncHandler(async (req, res) => {
     if (!category) return res.json({ products: [] })
     query.categoryId = category._id
   }
-  if (req.query.q) query.$text = { $search: String(req.query.q).trim() }
+  const searchTerm = typeof req.query.q === 'string' ? req.query.q.trim() : ''
+  if (searchTerm) {
+    query.name = { $regex: escapeRegex(searchTerm), $options: 'i' }
+  }
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 100)
   const products = await Product.find(query).populate('categoryId', 'name slug').sort({ createdAt: -1 }).limit(limit)
   res.json({ products: products.map(productResponse) })
