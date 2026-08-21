@@ -1,6 +1,7 @@
 import Order from '../models/Order.js'
 import Product from '../models/Product.js'
 import { asyncHandler } from '../middleware/asyncHandler.js'
+import OrderCounter from '../models/OrderCounter.js'
 
 const DELIVERY_RATES = { wallet: { inside: 60, outside: 100 }, standard: { inside: 80, outside: 130 } }
 const statusValues = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
@@ -34,7 +35,13 @@ export const createOrder = asyncHandler(async (req, res) => {
   const walletOnly = products.every(isWallet)
   const rates = walletOnly ? DELIVERY_RATES.wallet : DELIVERY_RATES.standard
   const deliveryCharge = zone === 'Inside Dhaka' ? rates.inside : rates.outside
-  const order = await Order.create({ userId: req.user?._id ?? null, guestName: req.user ? null : guestName, phone, address, deliveryZone: zone, deliveryCharge, subtotal, total: subtotal + deliveryCharge, items })
+  const counter = await OrderCounter.findOneAndUpdate(
+    { key: 'orders' },
+    { $inc: { sequence: 1 } },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+  )
+  const orderNumber = `order-${String(counter.sequence).padStart(2, '0')}`
+  const order = await Order.create({ order_number: orderNumber, userId: req.user?._id ?? null, guestName: req.user ? null : guestName, phone, address, deliveryZone: zone, deliveryCharge, subtotal, total: subtotal + deliveryCharge, items })
   res.status(201).json({ message: 'Order placed successfully.', order })
 })
 
