@@ -11,6 +11,7 @@ const orderItemSchema = new mongoose.Schema({
 }, { _id: true, toJSON: { transform: (_doc, ret) => { ret.id = ret._id.toString(); ret.product_id = ret.productId?.toString(); ret.products = { id: ret.productId?.toString(), name: ret.productName, image_url: ret.imageUrl }; delete ret._id; delete ret.productId; delete ret.productName; delete ret.imageUrl; return ret } } })
 
 const orderSchema = new mongoose.Schema({
+  order_number: { type: String, unique: true, index: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
   guestName: { type: String, trim: true, maxlength: 100, default: null },
   phone: { type: String, required: true, trim: true, maxlength: 30 },
