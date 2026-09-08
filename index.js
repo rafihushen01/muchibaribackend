@@ -19,6 +19,7 @@ import { errorHandler, notFound } from './middleware/errorMiddleware.js'
 dotenv.config()
 
 const app = express()
+app.set('trust proxy', false)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const allowedOrigins = (process.env.CLIENT_URL ?? 'http://localhost:3000').split(',').map((origin) => origin.trim())
 
@@ -30,7 +31,7 @@ app.use(cors({
     return callback(new Error('Origin is not allowed by CORS'))
   },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Meta-Fbp', 'X-Meta-Fbc'],
 }))
 app.use(express.json({ limit: '1mb' }))
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { maxAge: '7d', immutable: true }))

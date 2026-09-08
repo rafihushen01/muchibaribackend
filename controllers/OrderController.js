@@ -2,6 +2,7 @@ import Order from '../models/Order.js'
 import Product from '../models/Product.js'
 import { asyncHandler } from '../middleware/asyncHandler.js'
 import OrderCounter from '../models/OrderCounter.js'
+import { sendMetaEvent } from '../services/meta/metaCapi.service.js'
 
 const DELIVERY_RATES = { wallet: { inside: 60, outside: 100 }, standard: { inside: 80, outside: 130 } }
 const statusValues = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
@@ -42,6 +43,38 @@ export const createOrder = asyncHandler(async (req, res) => {
   )
   const orderNumber = `order-${String(counter.sequence).padStart(2, '0')}`
   const order = await Order.create({ order_number: orderNumber, userId: req.user?._id ?? null, guestName: req.user ? null : guestName, phone, address, deliveryZone: zone, deliveryCharge, subtotal, total: subtotal + deliveryCharge, items })
+  const claimedOrder = await Order.findOneAndUpdate(
+    { _id: order._id, metaPurchaseClaimedAt: null },
+    { $set: { metaPurchaseClaimedAt: new Date() } },
+    { returnDocument: 'after' },
+  )
+  if (claimedOrder) {
+    const origin = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:3000'
+    void sendMetaEvent({
+      eventName: 'Purchase',
+      eventId: `purchase_${order.id}`,
+      eventSourceUrl: `${origin}/order-success`,
+      orderId: order.id,
+      userData: {
+        em: req.user?.email,
+        ph: order.phone,
+        fn: req.user?.fullName || order.guestName,
+        external_id: req.user?._id?.toString(),
+        fbp: req.get('x-meta-fbp'),
+        fbc: req.get('x-meta-fbc'),
+        client_ip_address: req.ip,
+        client_user_agent: req.get('user-agent'),
+      },
+      customData: {
+        currency: 'BDT',
+        value: order.total,
+        order_id: order.id,
+        content_type: 'product',
+        content_ids: order.items.map((item) => item.productId.toString()),
+        contents: order.items.map((item) => ({ id: item.productId.toString(), quantity: item.quantity, item_price: item.price })),
+      },
+    })
+  }
   res.status(201).json({ message: 'Order placed successfully.', order })
 })
 
