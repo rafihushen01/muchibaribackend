@@ -43,25 +43,20 @@ export const createOrder = asyncHandler(async (req, res) => {
   )
   const orderNumber = `order-${String(counter.sequence).padStart(2, '0')}`
   const order = await Order.create({ order_number: orderNumber, userId: req.user?._id ?? null, guestName: req.user ? null : guestName, phone, address, deliveryZone: zone, deliveryCharge, subtotal, total: subtotal + deliveryCharge, items })
-  const claimedOrder = await Order.findOneAndUpdate(
-    { _id: order._id, metaPurchaseClaimedAt: null },
-    { $set: { metaPurchaseClaimedAt: new Date() } },
-    { returnDocument: 'after' },
-  )
-  if (claimedOrder) {
+  if (!order.metaPurchaseSentAt) {
     const origin = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:3000'
-    void sendMetaEvent({
+    const metaResult = await sendMetaEvent({
       eventName: 'Purchase',
       eventId: `purchase_${order.id}`,
-      eventSourceUrl: `${origin}/order-success`,
+      eventSourceUrl: String(req.body.event_source_url || `${origin}/order-success`),
       orderId: order.id,
       userData: {
         em: req.user?.email,
         ph: order.phone,
         fn: req.user?.fullName || order.guestName,
         external_id: req.user?._id?.toString(),
-        fbp: req.get('x-meta-fbp'),
-        fbc: req.get('x-meta-fbc'),
+        fbp: req.body.fbp || req.get('x-meta-fbp'),
+        fbc: req.body.fbc || req.get('x-meta-fbc'),
         client_ip_address: req.ip,
         client_user_agent: req.get('user-agent'),
       },
@@ -74,6 +69,9 @@ export const createOrder = asyncHandler(async (req, res) => {
         contents: order.items.map((item) => ({ id: item.productId.toString(), quantity: item.quantity, item_price: item.price })),
       },
     })
+    if (metaResult.sent) {
+      await Order.updateOne({ _id: order._id, metaPurchaseSentAt: null }, { $set: { metaPurchaseSentAt: new Date() } })
+    }
   }
   res.status(201).json({ message: 'Order placed successfully.', order })
 })
