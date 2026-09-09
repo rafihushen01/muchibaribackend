@@ -21,11 +21,15 @@ export async function sendMetaEvent({ eventName, eventId, eventTime = Math.floor
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
   let status
+  const payload = { data: [{ event_name: eventName, event_time: eventTime, event_id: eventId, action_source: 'website', event_source_url: eventSourceUrl, user_data: { ...hashCustomerIdentifiers(userData), client_ip_address: userData.client_ip_address, client_user_agent: userData.client_user_agent }, custom_data: customData }] }
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug('META_CAPI_EVENT_PAYLOAD', { ...payload.data[0], user_data: { fields: Object.keys(payload.data[0].user_data) } })
+  }
   try {
     const response = await fetch(`https://graph.facebook.com/${apiVersion}/${datasetId}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: [{ event_name: eventName, event_time: eventTime, event_id: eventId, action_source: 'website', event_source_url: eventSourceUrl, user_data: { ...hashCustomerIdentifiers(userData), client_ip_address: userData.client_ip_address, client_user_agent: userData.client_user_agent } , custom_data: customData }] }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     })
     status = response.status
