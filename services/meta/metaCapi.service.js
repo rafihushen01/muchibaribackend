@@ -2,7 +2,7 @@ import { META_EVENT_NAMES } from './metaTypes.js'
 import { hashCustomerIdentifiers } from './metaHashing.js'
 
 const timeoutMs = 4000
-// meta event fire is updated for correct event name and its full detail
+//final meta event fire is updated for correct event name and its full detail
 function logSuccess(eventName, eventId, orderId, status) {
   console.info('META_CAPI_EVENT_SUCCESS', { event_name: eventName, event_id: eventId, order_id: orderId ?? null, status })
 }
