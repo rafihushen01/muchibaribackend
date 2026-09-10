@@ -2,13 +2,19 @@ import { META_EVENT_NAMES } from './metaTypes.js'
 import { hashCustomerIdentifiers } from './metaHashing.js'
 
 const timeoutMs = 4000
-//final meta event fire is updated for correct event name and its full detail ,done
+
 function logSuccess(eventName, eventId, orderId, status) {
   console.info('META_CAPI_EVENT_SUCCESS', { event_name: eventName, event_id: eventId, order_id: orderId ?? null, status })
 }
 
-function logFailure(eventName, eventId, orderId, status) {
-  console.error('META_CAPI_EVENT_FAILED', { event_name: eventName, event_id: eventId, order_id: orderId ?? null, status: status ?? null })
+function logFailure(eventName, eventId, orderId, status, errorBody) {
+  console.error('META_CAPI_EVENT_FAILED', { 
+    event_name: eventName, 
+    event_id: eventId, 
+    order_id: orderId ?? null, 
+    status: status ?? null,
+    error: errorBody ?? 'unknown'
+  })
 }
 
 export async function sendMetaEvent({ eventName, eventId, eventTime = Math.floor(Date.now() / 1000), eventSourceUrl, userData = {}, customData = {}, orderId }) {
@@ -33,15 +39,16 @@ export async function sendMetaEvent({ eventName, eventId, eventTime = Math.floor
       signal: controller.signal,
     })
     status = response.status
+    const responseText = await response.text()
     if (!response.ok) {
-      logFailure(eventName, eventId, orderId, status)
-      return { sent: false, status }
+      logFailure(eventName, eventId, orderId, status, responseText)
+      return { sent: false, status, error: responseText }
     }
     logSuccess(eventName, eventId, orderId, status)
     return { sent: true, status }
-  } catch {
-    logFailure(eventName, eventId, orderId, status)
-    return { sent: false, status }
+  } catch (err) {
+    logFailure(eventName, eventId, orderId, status, err?.message)
+    return { sent: false, status, error: err?.message }
   } finally {
     clearTimeout(timeout)
   }
