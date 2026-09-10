@@ -19,7 +19,7 @@ import { errorHandler, notFound } from './middleware/errorMiddleware.js'
 dotenv.config()
 
 const app = express()
-app.set('trust proxy', false)
+app.set('trust proxy', 1)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const allowedOrigins = (process.env.CLIENT_URL ?? 'http://localhost:3000').split(',').map((origin) => origin.trim())
 
