@@ -34,6 +34,13 @@ export async function sendMetaEvent({ eventName, eventId, eventTime = Math.floor
     })
     status = response.status
     if (!response.ok) {
+      // Meta returns the real reason only in the body (e.g. expired token,
+      // missing ads_management scope, wrong dataset id). Log it instead of
+      // only the status code so a silent CAPI outage is diagnosable.
+      try {
+        const bodyText = await response.clone().text()
+        console.error('META_CAPI_ERROR_BODY', { event: eventName, status, body: bodyText.slice(0, 600) })
+      } catch {}
       logFailure(eventName, eventId, orderId, status)
       return { sent: false, status }
     }
